@@ -3,7 +3,8 @@ import AVFoundation // Import the framework for text-to-speech
 
 // --- Data Models ---
 // Represents a single question in the exam
-struct Question {
+// --- FIX: Conform to Identifiable protocol ---
+struct Question: Identifiable {
     let id: Int
     let text: String
     let type: QuestionType
@@ -161,7 +162,13 @@ struct ExamView: View {
     var body: some View {
         VStack {
             if showResults {
-                ResultsView(score: score, hasHighSchoolEducation: hasHighSchoolEducation, presentationMode: _presentationMode)
+                ResultsView(
+                    score: score,
+                    hasHighSchoolEducation: hasHighSchoolEducation,
+                    questions: questions,
+                    answers: answers,
+                    presentationMode: _presentationMode
+                )
             } else {
                 // Timer Display
                 VStack {
@@ -204,7 +211,6 @@ struct ExamView: View {
                 HStack {
                     if currentQuestionIndex > 0 {
                         Button("Back") {
-                            // --- FIX: Add guard to prevent index out of range ---
                             guard currentQuestionIndex > 0 else { return }
                             navigationDirection = .backward // Set direction
                             withAnimation {
@@ -697,6 +703,7 @@ struct Triangle: Shape {
 }
 
 // --- Number Series View (Redesigned) ---
+@MainActor
 class SpeechManager: NSObject, AVSpeechSynthesizerDelegate, ObservableObject {
     private let synthesizer = AVSpeechSynthesizer()
     private var speechQueue: [AVSpeechUtterance] = []
@@ -732,12 +739,15 @@ class SpeechManager: NSObject, AVSpeechSynthesizerDelegate, ObservableObject {
         synthesizer.speak(speechQueue.removeFirst())
     }
     
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        if !speechQueue.isEmpty {
-            synthesizer.speak(speechQueue.removeFirst())
-        } else {
-            isSpeaking = false
-            onQueueFinish?()
+    // --- FIX: Add 'nonisolated' to satisfy protocol requirement ---
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        Task { @MainActor in
+            if !speechQueue.isEmpty {
+                self.synthesizer.speak(speechQueue.removeFirst())
+            } else {
+                self.isSpeaking = false
+                self.onQueueFinish?()
+            }
         }
     }
     
@@ -858,11 +868,14 @@ struct NumberSeriesView: View {
 }
 
 
-// --- Results View ---
+// --- Results and Report Views ---
 struct ResultsView: View {
     let score: Int
     let hasHighSchoolEducation: Bool
+    let questions: [Question]
+    let answers: [Int: Any]
     @Environment(\.presentationMode) var presentationMode
+    @State private var showReport = false
 
     var interpretation: String {
         let scoreRanges = getScoreRanges()
@@ -904,6 +917,11 @@ struct ResultsView: View {
             }
             .padding()
             
+            Button(action: { showReport = true }) {
+                Label("View Report", systemImage: "doc.text.fill")
+            }
+            .buttonStyle(.bordered)
+            
             Text("Disclaimer: This is a screening tool and not a diagnosis. Please consult a healthcare professional with any concerns.")
                 .font(.caption)
                 .foregroundColor(.gray)
@@ -927,9 +945,16 @@ struct ResultsView: View {
             .padding(.horizontal, 40)
             Spacer()
         }
+        .sheet(isPresented: $showReport) {
+            ReportView(
+                score: score,
+                interpretation: interpretation,
+                questions: questions,
+                answers: answers
+            )
+        }
     }
 
-    // --- Helper functions for Results View ---
     private func getScoreRanges() -> (normal: ClosedRange<Int>, mild: ClosedRange<Int>, dementia: ClosedRange<Int>) {
         if hasHighSchoolEducation {
             return (normal: 27...30, mild: 21...26, dementia: 0...20)
@@ -948,6 +973,163 @@ struct ResultsView: View {
             return .red
         }
     }
+}
+
+struct ReportView: View {
+    let score: Int
+    let interpretation: String
+    let questions: [Question]
+    let answers: [Int: Any]
+    
+    @State private var pdfURL: URL?
+    @State private var showShareSheet = false
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                reportBody
+            }
+            .navigationTitle("Test Report")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: generatePDF) {
+                        Label("Share as PDF", systemImage: "square.and.arrow.up")
+                    }
+                }
+            }
+            .sheet(isPresented: $showShareSheet) {
+                if let pdfURL {
+                    ShareSheet(activityItems: [pdfURL])
+                }
+            }
+        }
+    }
+    
+    var reportBody: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            VStack {
+                Text("CogniQuest Screening Report")
+                    .font(.title2).bold()
+                Text("Generated on: \(Date().formatted(date: .long, time: .shortened))")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Summary").font(.title3).bold()
+                HStack {
+                    Text("Final Score:")
+                    Spacer()
+                    Text("\(score) / 30").bold()
+                }
+                HStack {
+                    Text("Interpretation:")
+                    Spacer()
+                    Text(interpretation).bold()
+                }
+            }
+            .padding()
+            .background(Color(UIColor.systemGray6))
+            .cornerRadius(10)
+            
+            Text("Detailed Responses").font(.title3).bold().padding(.top)
+            
+            ForEach(questions.filter { $0.type != .registration }) { question in
+                VStack(alignment: .leading) {
+                    Text("Q\(question.id): \(question.text.split(separator: "\n").first ?? "")")
+                        .font(.headline)
+                    Text(formattedAnswer(for: question))
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                }
+                Divider()
+            }
+        }
+        .padding()
+    }
+    
+    private func formattedAnswer(for question: Question) -> String {
+        guard let answer = answers[question.id] else { return "No Response" }
+        
+        switch question.type {
+        case .calculation:
+            if let dict = answer as? [String: Int] {
+                return "Spent: $\(dict["spent"] ?? 0), Left: $\(dict["left"] ?? 0)"
+            }
+        case .animalList:
+            if let count = answer as? Int {
+                return "Named \(count) animals."
+            }
+        case .fiveWordRecall:
+            if let words = answer as? [String] {
+                let filtered = words.filter { !$0.isEmpty }
+                return filtered.isEmpty ? "No Response" : filtered.joined(separator: ", ")
+            }
+        case .numberSeriesBackwards:
+            if let dict = answer as? [String: String] {
+                return "87 -> \(dict["series1"] ?? "NR"), 648 -> \(dict["series2"] ?? "NR"), 8537 -> \(dict["series3"] ?? "NR")"
+            }
+        case .storyRecall:
+            if let dict = answer as? [String: String] {
+                return "Name: \(dict["womanName"] ?? "NR"), Work: \(dict["profession"] ?? "NR"), Returned: \(dict["when"] ?? "NR"), State: \(dict["state"] ?? "NR")"
+            }
+        case .shapeIdentification:
+             if let dict = answer as? [String: String?] {
+                // --- FIX: Safely unwrap the optional values ---
+                let tapped = dict["tappedShape"]?.flatMap { $0 } ?? "NR"
+                let largest = dict["largestShape"]?.flatMap { $0 } ?? "NR"
+                return "Tapped: \(tapped), Largest: \(largest)"
+            }
+        case .clockDrawing:
+            return "Drawing was recorded."
+        default:
+            if let text = answer as? String, !text.isEmpty {
+                return text
+            } else if let num = answer as? Int {
+                return "\(num)"
+            }
+        }
+        return "No Response"
+    }
+
+    @MainActor
+    private func generatePDF() {
+        let renderer = ImageRenderer(content: reportBody.frame(width: 600))
+        
+        let url = URL.documentsDirectory.appending(path: "CogniQuest_Report.pdf")
+        
+        renderer.render { size, context in
+            var box = CGRect(x: 0, y: 0, width: size.width, height: size.height)
+            
+            // --- FIX: Change 'var' to 'let' ---
+            guard let pdf = CGContext(url as CFURL, mediaBox: &box, nil) else {
+                return
+            }
+            
+            pdf.beginPDFPage(nil)
+            context(pdf)
+            pdf.endPDFPage()
+            pdf.closePDF()
+            
+            self.pdfURL = url
+            self.showShareSheet = true
+        }
+    }
+}
+
+// Helper for showing the Share Sheet
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 
