@@ -113,6 +113,10 @@ struct ExamView: View {
     @State private var score = 0
     @State private var showResults = false
     @Environment(\.presentationMode) var presentationMode
+    
+    // --- FIX: State to track animation direction ---
+    enum NavigationDirection { case forward, backward }
+    @State private var navigationDirection: NavigationDirection = .forward
 
     // Timer state
     @State private var timeRemaining: Double
@@ -138,6 +142,20 @@ struct ExamView: View {
         self.hasHighSchoolEducation = hasHighSchoolEducation
         self.timerDuration = timerDuration
         _timeRemaining = State(initialValue: timerDuration)
+    }
+    
+    // --- FIX: Computed property for dynamic transition ---
+    var questionTransition: AnyTransition {
+        let forwardTransition = AnyTransition.asymmetric(
+            insertion: .move(edge: .trailing),
+            removal: .move(edge: .leading)
+        )
+        let backwardTransition = AnyTransition.asymmetric(
+            insertion: .move(edge: .leading),
+            removal: .move(edge: .trailing)
+        )
+        
+        return navigationDirection == .forward ? forwardTransition : backwardTransition
     }
 
     var body: some View {
@@ -165,7 +183,6 @@ struct ExamView: View {
                         .font(.headline)
                         .foregroundColor(.gray)
                     
-                    // Use ScrollView for the question text to handle overflow
                     ScrollView {
                         Text(questions[currentQuestionIndex].text)
                             .font(.title2)
@@ -174,11 +191,11 @@ struct ExamView: View {
                             .padding()
                             .minimumScaleFactor(0.8)
                     }
-                    .frame(maxHeight: 200) // Constrain the height of the scrollable text
+                    .frame(maxHeight: 200)
 
                     questionView(for: questions[currentQuestionIndex])
                 }
-                .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)))
+                .transition(questionTransition) // Use the dynamic transition
                 .id(currentQuestionIndex)
 
                 Spacer()
@@ -187,6 +204,7 @@ struct ExamView: View {
                 HStack {
                     if currentQuestionIndex > 0 {
                         Button("Back") {
+                            navigationDirection = .backward // Set direction
                             withAnimation {
                                 currentQuestionIndex -= 1
                             }
@@ -262,12 +280,12 @@ struct ExamView: View {
     
     // --- Timer and Navigation Logic ---
     private func resetTimer() {
-        // Reset narration flag for all questions, it will be set to false only for the voice question
         isNarrationComplete = true
         timeRemaining = timerDuration
     }
 
     private func moveToNextQuestion() {
+        navigationDirection = .forward // Set direction
         if currentQuestionIndex < questions.count - 1 {
             withAnimation {
                 currentQuestionIndex += 1
@@ -481,7 +499,6 @@ struct StoryRecallView: View {
     @State private var state: String = ""
     
     var body: some View {
-        // --- FIX: Wrap the content in a ScrollView ---
         ScrollView {
             VStack(spacing: 15) {
                 TextField("What was the female's name?", text: $womanName)
@@ -527,17 +544,14 @@ struct DrawingView: View {
     let questionId: Int
     @Binding var answers: [Int: Any]
     @State private var paths: [DrawingPath] = []
-    // Use Color.primary which adapts to light/dark mode
     @State private var currentPath = DrawingPath(color: .primary, lineWidth: 3.0)
 
     var body: some View {
         VStack {
             ZStack {
-                // The circle outline for the clock
                 Circle()
                     .stroke(Color.gray, lineWidth: 2)
                 
-                // The canvas for drawing
                 Canvas { context, size in
                     for path in paths {
                         var path2D = Path()
@@ -557,7 +571,6 @@ struct DrawingView: View {
                         }
                         .onEnded { value in
                             answers[questionId] = paths
-                            // Reset for the next line, using the adaptive primary color
                             currentPath = DrawingPath(color: .primary, lineWidth: 3.0)
                         }
                 )
@@ -592,18 +605,14 @@ struct ShapeIdentificationView: View {
 
     var body: some View {
         VStack {
-            // Display the shapes, modeled after the image
             HStack(alignment: .bottom, spacing: 15) {
-                // Large Square
                 ShapeContainer(shape: Rectangle(), name: "Square", tappedShape: $tappedShape)
                     .aspectRatio(1, contentMode: .fit)
                     .frame(width: 100)
 
-                // Medium Triangle
                 ShapeContainer(shape: Triangle(), name: "Triangle", tappedShape: $tappedShape)
                     .frame(width: 70, height: 70)
 
-                // Narrow Rectangle
                 ShapeContainer(shape: Rectangle(), name: "Rectangle", tappedShape: $tappedShape)
                     .frame(width: 40, height: 90)
             }
@@ -611,7 +620,6 @@ struct ShapeIdentificationView: View {
             
             Divider().padding()
 
-            // Ask which is largest
             Text("Which of the figures is largest?")
                 .font(.headline)
             
@@ -668,7 +676,7 @@ struct ShapeContainer<S: Shape>: View {
                     .foregroundColor(.red)
             }
         }
-        .contentShape(shape) // Makes the entire shape tappable
+        .contentShape(shape)
         .onTapGesture {
             tappedShape = name
         }
@@ -714,7 +722,7 @@ class SpeechManager: NSObject, AVSpeechSynthesizerDelegate, ObservableObject {
             let utterance = AVSpeechUtterance(string: text)
             utterance.voice = AVSpeechSynthesisVoice(identifier: "com.apple.voice.enhanced.en-US.Samantha") ?? AVSpeechSynthesisVoice(language: "en-US")
             utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95
-            utterance.postUtteranceDelay = 1.0 // Adds a natural pause after each utterance
+            utterance.postUtteranceDelay = 1.0
             return utterance
         }
         
@@ -731,7 +739,6 @@ class SpeechManager: NSObject, AVSpeechSynthesizerDelegate, ObservableObject {
         }
     }
     
-    // --- FIX: Method to stop speech ---
     func stop() {
         synthesizer.stopSpeaking(at: .immediate)
         speechQueue.removeAll()
@@ -763,7 +770,7 @@ struct AudioVisualizerView: View {
     }
     
     private func startAnimating() {
-        timer?.invalidate() // Invalidate any existing timer
+        timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { _ in
             barHeights = [CGFloat.random(in: 10...50), CGFloat.random(in: 10...50), CGFloat.random(in: 10...50)]
         }
@@ -811,7 +818,7 @@ struct NumberSeriesView: View {
         .onChange(of: answer2) { updateAnswers() }
         .onChange(of: answer3) { updateAnswers() }
         .onAppear {
-            isNarrationComplete = false // Stop the main timer
+            isNarrationComplete = false
             setupAndPlaySequence()
             if let saved = answers[questionId] as? [String: String] {
                 answer1 = saved["series1"] ?? ""
@@ -820,7 +827,7 @@ struct NumberSeriesView: View {
             }
         }
         .onDisappear {
-            speechManager.stop() // Stop audio when view disappears
+            speechManager.stop()
         }
     }
     
@@ -832,7 +839,7 @@ struct NumberSeriesView: View {
         let speechSequence = [questionText, series1, series2, series3]
         
         speechManager.onQueueFinish = {
-            isNarrationComplete = true // Start the main timer
+            isNarrationComplete = true
         }
         
         speechManager.speak(queue: speechSequence)
