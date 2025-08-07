@@ -114,7 +114,7 @@ struct ExamView: View {
     @State private var showResults = false
     @Environment(\.presentationMode) var presentationMode
     
-    // --- FIX: State to track animation direction ---
+    // State to track animation direction
     enum NavigationDirection { case forward, backward }
     @State private var navigationDirection: NavigationDirection = .forward
 
@@ -144,7 +144,7 @@ struct ExamView: View {
         _timeRemaining = State(initialValue: timerDuration)
     }
     
-    // --- FIX: Computed property for dynamic transition ---
+    // Computed property for dynamic transition
     var questionTransition: AnyTransition {
         let forwardTransition = AnyTransition.asymmetric(
             insertion: .move(edge: .trailing),
@@ -204,6 +204,8 @@ struct ExamView: View {
                 HStack {
                     if currentQuestionIndex > 0 {
                         Button("Back") {
+                            // --- FIX: Add guard to prevent index out of range ---
+                            guard currentQuestionIndex > 0 else { return }
                             navigationDirection = .backward // Set direction
                             withAnimation {
                                 currentQuestionIndex -= 1
