@@ -699,9 +699,6 @@ class SpeechManager: NSObject, AVSpeechSynthesizerDelegate, ObservableObject {
         super.init()
         synthesizer.delegate = self
         
-        // --- FIX: Configure the audio session ---
-        // This tells the iPhone that the app needs to play audio,
-        // which is required for speech to work on a real device.
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
@@ -711,14 +708,13 @@ class SpeechManager: NSObject, AVSpeechSynthesizerDelegate, ObservableObject {
     }
     
     func speak(queue: [String]) {
-        guard !queue.isEmpty else { return }
+        guard !queue.isEmpty, !synthesizer.isSpeaking else { return }
         
         speechQueue = queue.map { text in
             let utterance = AVSpeechUtterance(string: text)
-            // Use a more natural, enhanced voice if available
             utterance.voice = AVSpeechSynthesisVoice(identifier: "com.apple.voice.enhanced.en-US.Samantha") ?? AVSpeechSynthesisVoice(language: "en-US")
             utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95
-            utterance.postUtteranceDelay = 1.0 // Adds a pause after each utterance
+            utterance.postUtteranceDelay = 1.0 // Adds a natural pause after each utterance
             return utterance
         }
         
@@ -734,20 +730,49 @@ class SpeechManager: NSObject, AVSpeechSynthesizerDelegate, ObservableObject {
             onQueueFinish?()
         }
     }
+    
+    // --- FIX: Method to stop speech ---
+    func stop() {
+        synthesizer.stopSpeaking(at: .immediate)
+        speechQueue.removeAll()
+        isSpeaking = false
+    }
 }
 
 struct AudioVisualizerView: View {
     @Binding var isSpeaking: Bool
+    @State private var barHeights: [CGFloat] = [10, 10, 10]
+    @State private var timer: Timer?
 
     var body: some View {
         HStack(spacing: 4) {
             ForEach(0..<3) { i in
                 Rectangle()
-                    .frame(width: 8, height: isSpeaking ? CGFloat.random(in: 10...50) : 10)
-                    .animation(.easeInOut(duration: 0.2).delay(Double(i) * 0.1), value: isSpeaking)
+                    .frame(width: 8, height: barHeights[i])
+                    .animation(.easeInOut(duration: 0.2), value: barHeights)
             }
         }
         .foregroundColor(.blue)
+        .onChange(of: isSpeaking) {
+            if isSpeaking {
+                startAnimating()
+            } else {
+                stopAnimating()
+            }
+        }
+    }
+    
+    private func startAnimating() {
+        timer?.invalidate() // Invalidate any existing timer
+        timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { _ in
+            barHeights = [CGFloat.random(in: 10...50), CGFloat.random(in: 10...50), CGFloat.random(in: 10...50)]
+        }
+    }
+    
+    private func stopAnimating() {
+        timer?.invalidate()
+        timer = nil
+        barHeights = [10, 10, 10]
     }
 }
 
@@ -793,6 +818,9 @@ struct NumberSeriesView: View {
                 answer2 = saved["series2"] ?? ""
                 answer3 = saved["series3"] ?? ""
             }
+        }
+        .onDisappear {
+            speechManager.stop() // Stop audio when view disappears
         }
     }
     
@@ -920,4 +948,3 @@ struct ContentView_Previews: PreviewProvider {
         ContentView()
     }
 }
-
