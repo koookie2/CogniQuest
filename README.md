@@ -1,42 +1,46 @@
-CogniQuest (iOS)
+## CogniQuest 🧠 (iOS)
 
-CogniQuest is a SwiftUI-based iOS app that guides a user through a short cognitive screening exam and generates a shareable report (PDF). It focuses on a clean, accessible UX and a maintainable architecture.
+An interactive, voice-guided iOS implementation of the SLUMS cognitive screening exam, built with SwiftUI. The app focuses on a clean, accessible UX and a maintainable, testable architecture.
 
-Features
+### Overview
+CogniQuest digitizes the Saint Louis University Mental Status (SLUMS) examination, a public domain tool used for cognitive screening. It was developed as a learning project to explore modern iOS development (SwiftUI, state management, AVFoundation) while producing a practical, polished app. Users can complete the full flow and share a PDF summary of results.
+
+### Features
+- Voice-driven prompts for the number series (AVFoundation TTS)
+- Audio visualizer synchronized with narration
 - Configurable per-question timer and education level adjustment
-- Multi-step exam with typed answers and scoring (30-point scale)
-- Text-to-speech narration for number series prompts (AVFoundation)
-- Clock drawing, shape identification, and story recall inputs
-- Results screen with interpretation (Normal / Mild / Likely Dementia)
-- In-app PDF report export via the iOS Share Sheet
+- Interactive drawing for the clock-drawing task (Canvas-based) with Clear
+- Shape identification and story recall inputs
+- Typed answers with safe, strongly-typed models
+- Automatic scoring with interpretation aligned to SLUMS guidance
+- Modern SwiftUI UI/UX with smooth, direction-aware navigation
+- Shareable PDF report via the native iOS Share Sheet
 
-Requirements
+### Tech Stack
+- Swift, SwiftUI
+- AVFoundation (text-to-speech)
+- Xcode 16+
+
+### Requirements
 - Xcode 16.x
 - iOS 17.0+ (deployment target)
 
-Getting Started
-1) Open `CogniQuest.xcodeproj` in Xcode 16 or newer.
-2) Select a simulator (iPhone) or a connected device.
-3) If building for device, update the signing team in the target settings.
-4) Build and Run (Cmd+R).
+### How to Run
+1. Open `CogniQuest.xcodeproj` in Xcode 16 or newer
+2. Select a simulator (iPhone) or a connected device
+3. If building for device, set your signing team in target settings
+4. Build and run (Cmd+R)
 
-To run unit tests: Product → Test (Cmd+U).
+To run unit tests: Product → Test (Cmd+U)
 
-Architecture
-The app uses a lightweight MVVM structure:
-- Models: Typed question and answer domain models
-- ViewModels: Screen state, navigation, timer, scoring
-- Services: Side-effectful or shared modules (TTS, scoring)
-- Views: SwiftUI screens and subviews (Exam, Results, Report, Shared)
+### Architecture
+Lightweight MVVM with clear separation of concerns:
+- Models: `Question`, `Answer` and related domain types
+- ViewModels: `ExamViewModel` (state, navigation, timer, narration phase)
+- Services: `SpeechManager` (TTS + audio session), `ScoringService` (score calc)
+- Views: Exam flow, inputs, results, report, and shared components
 
-Key types
-- `Question` and `QuestionType` define the exam items
-- `Answer` is a strongly-typed enum with associated values for safety
-- `ExamViewModel` owns exam flow, timing, narration phase, and result
-- `ScoringService` computes the final score from typed answers
-- `SpeechManager` manages TTS and audio session lifecycle
-
-Project Structure
+### Project Structure
 - `CogniQuest/Models/`
   - `Question.swift`, `Answer.swift`
 - `CogniQuest/ViewModels/`
@@ -49,38 +53,38 @@ Project Structure
   - `Shared/` – cross-cutting views (e.g., `AudioVisualizerView.swift`)
 - `CogniQuest/ContentView.swift` – Home screen that navigates to the exam
 
-Scoring
-The scoring logic is encapsulated in `ScoringService`. Inputs are normalized (e.g., trimmed/lowercased where needed), and each question contributes to the 30-point total. Interpretation is adjusted based on education level.
+### Scoring
+Encapsulated in `ScoringService`. Inputs are normalized (e.g., trimming/casing where needed) and mapped to a 30-point total, with interpretation adjusted by education level in line with SLUMS guidance.
 
-Accessibility & Internationalization
-- Core interactive views expose accessibility labels and hints
-- Dynamic Type and contrast-aware UI where possible
-- Strings are currently inline; migration to String Catalog is recommended
-- TTS voice is locale-aware (falls back to en-US)
+### PDF Report
+`ReportView` renders a detailed summary (questions, answers, score, interpretation). PDF export uses `UIGraphicsPDFRenderer` for crisp text and shares a temporary file URL via `UIActivityViewController`.
 
-PDF Report
-`ReportView` renders a structured summary and per-question responses. Export uses `UIGraphicsPDFRenderer` to produce text-crisp PDFs and shares a temporary file URL via `UIActivityViewController`.
+### Accessibility & Internationalization
+- Accessibility labels/hints on interactive controls
+- Dynamic Type-friendly layouts and contrast-aware styling where possible
+- Locale-aware TTS voice (falls back to en-US)
+- Strings currently inline; migrating to a String Catalog is recommended
 
-Testing
-- `ScoringServiceTests` includes an initial unit test scaffold (XCTest)
-- Suggested next tests: edge cases for scoring, `ExamViewModel` navigation and timer behavior
+### Project Status & Roadmap
+Current app is fully functional for the SLUMS flow.
+- Potential enhancements:
+  - Results history using SwiftData
+  - String Catalog for localization
+  - Expanded unit/UI tests (timer expiry, narration gating, edge cases)
+  - iPad-optimized layout
+  - Persist and optionally render drawings within the report
+  - Complete any remaining optional practice prompts if applicable
 
-Roadmap (Suggestions)
-- Add a simple History screen (previous attempts) using SwiftData
-- Externalize strings for localization
-- Expand unit and UI tests (timer expiry, TTS/narration gating)
-- Persist and optionally render clock drawings in the report
-
-Privacy
+### Privacy & Disclaimer
 - The app does not collect analytics or transmit data by default
-- Text-to-speech does not require microphone permissions
+- TTS does not require microphone permission
 
-Contributing
-- Use Swift format/style consistent with the project
-- Prefer small, well-named files and testable units
-- Submit PRs with a brief description and screenshots for UI changes
+Disclaimer: CogniQuest is a screening aid, not a diagnostic instrument. It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of a qualified healthcare provider with questions regarding a medical condition.
 
-License
-This project is licensed under the MIT License. See `LICENSE` for details.
+### Contributing
+- Keep changes small and well-tested; match existing style
+- Prefer typed models and testable units
+- Include brief descriptions and screenshots for UI changes in PRs
 
-
+### License
+Licensed under the MIT License. See `LICENSE` for details.
