@@ -3,7 +3,6 @@ import AVFoundation // Import the framework for text-to-speech
 
 // --- Data Models ---
 // Represents a single question in the exam
-// --- FIX: Conform to Identifiable protocol ---
 struct Question: Identifiable {
     let id: Int
     let text: String
@@ -739,7 +738,6 @@ class SpeechManager: NSObject, AVSpeechSynthesizerDelegate, ObservableObject {
         synthesizer.speak(speechQueue.removeFirst())
     }
     
-    // --- FIX: Add 'nonisolated' to satisfy protocol requirement ---
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         Task { @MainActor in
             if !speechQueue.isEmpty {
@@ -975,14 +973,21 @@ struct ResultsView: View {
     }
 }
 
+// --- NEW: Wrapper for sharing data with the Share Sheet ---
+struct PDFShareItem: Identifiable {
+    let id = UUID()
+    let data: Data
+    let filename: String
+}
+
 struct ReportView: View {
     let score: Int
     let interpretation: String
     let questions: [Question]
     let answers: [Int: Any]
     
-    @State private var pdfURL: URL?
-    @State private var showShareSheet = false
+    // --- FIX: Use an identifiable item for the sheet ---
+    @State private var pdfShareItem: PDFShareItem?
 
     var body: some View {
         NavigationView {
@@ -998,10 +1003,9 @@ struct ReportView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showShareSheet) {
-                if let pdfURL {
-                    ShareSheet(activityItems: [pdfURL])
-                }
+            // --- FIX: Use .sheet(item:...) for safer presentation ---
+            .sheet(item: $pdfShareItem) { item in
+                ShareSheet(activityItems: [item.data], filename: item.filename)
             }
         }
     }
@@ -1078,7 +1082,6 @@ struct ReportView: View {
             }
         case .shapeIdentification:
              if let dict = answer as? [String: String?] {
-                // --- FIX: Safely unwrap the optional values ---
                 let tapped = dict["tappedShape"]?.flatMap { $0 } ?? "NR"
                 let largest = dict["largestShape"]?.flatMap { $0 } ?? "NR"
                 return "Tapped: \(tapped), Largest: \(largest)"
@@ -1099,23 +1102,11 @@ struct ReportView: View {
     private func generatePDF() {
         let renderer = ImageRenderer(content: reportBody.frame(width: 600))
         
-        let url = URL.documentsDirectory.appending(path: "CogniQuest_Report.pdf")
-        
-        renderer.render { size, context in
-            var box = CGRect(x: 0, y: 0, width: size.width, height: size.height)
-            
-            // --- FIX: Change 'var' to 'let' ---
-            guard let pdf = CGContext(url as CFURL, mediaBox: &box, nil) else {
-                return
+        // --- FIX: Render to data in memory ---
+        if let data = renderer.uiImage {
+             if let pdfData = data.pdfData() {
+                self.pdfShareItem = PDFShareItem(data: pdfData, filename: "CogniQuest_Report.pdf")
             }
-            
-            pdf.beginPDFPage(nil)
-            context(pdf)
-            pdf.endPDFPage()
-            pdf.closePDF()
-            
-            self.pdfURL = url
-            self.showShareSheet = true
         }
     }
 }
@@ -1123,13 +1114,31 @@ struct ReportView: View {
 // Helper for showing the Share Sheet
 struct ShareSheet: UIViewControllerRepresentable {
     let activityItems: [Any]
+    let filename: String
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
         let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        // Set a default filename for the shared item
+        controller.setValue(filename, forKey: "subject")
         return controller
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+// Helper extension to convert UIImage to PDF Data
+extension UIImage {
+    func pdfData() -> Data? {
+        let pdfData = NSMutableData()
+        let pdfConsumer = CGDataConsumer(data: pdfData as CFMutableData)!
+        var mediaBox = CGRect(origin: .zero, size: self.size)
+        let pdfContext = CGContext(consumer: pdfConsumer, mediaBox: &mediaBox, nil)!
+        pdfContext.beginPDFPage(nil)
+        pdfContext.draw(self.cgImage!, in: mediaBox)
+        pdfContext.endPDFPage()
+        pdfContext.closePDF()
+        return pdfData as Data
+    }
 }
 
 
