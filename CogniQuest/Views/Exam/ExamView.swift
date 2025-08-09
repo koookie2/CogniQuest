@@ -103,7 +103,14 @@ struct ExamView: View {
         case .orientation:
             TextInputView(questionId: question.id, answers: $viewModel.answers, placeholder: "Enter your answer")
         case .registration:
-            Text("Apple, Pen, Tie, House, Car").font(.title2.bold()).padding()
+            RegistrationView(
+                questionText: question.text,
+                words: ["Apple", "Pen", "Tie", "House", "Car"],
+                isNarrationComplete: Binding(
+                    get: { viewModel.phase != .narrating },
+                    set: { viewModel.setNarrating(!$0) }
+                )
+            )
         case .calculation:
             CalculationInputView(questionId: question.id, answers: $viewModel.answers)
         case .animalList:

@@ -102,3 +102,44 @@ struct FiveWordRecallInputView: View {
 }
 
 
+// MARK: - Registration (Q4) - Speak five words with pauses
+struct RegistrationView: View {
+    let questionText: String
+    let words: [String]
+    @Binding var isNarrationComplete: Bool
+    @StateObject private var speechManager = SpeechManager()
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text(words.joined(separator: ", "))
+                .font(.title2.bold())
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            AudioVisualizerView(isSpeaking: $speechManager.isSpeaking)
+                .frame(height: 40)
+                .accessibilityHidden(true)
+
+            Text("Listen carefully to remember these five objects.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .padding()
+        .onAppear {
+            isNarrationComplete = false
+            playWords()
+        }
+        .onDisappear { speechManager.stop() }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Five objects to remember: \(words.joined(separator: ", "))")
+    }
+
+    private func playWords() {
+        let sequence = [questionText] + words
+        speechManager.onQueueFinish = { isNarrationComplete = true }
+        // 1.8s pause between words to aid retention
+        speechManager.speak(queue: sequence, postUtteranceDelay: 1.8)
+    }
+}
+
+

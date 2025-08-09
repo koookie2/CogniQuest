@@ -18,6 +18,10 @@ final class SpeechManager: NSObject, AVSpeechSynthesizerDelegate, ObservableObje
     }
 
     func speak(queue: [String]) {
+        speak(queue: queue, postUtteranceDelay: 1.0)
+    }
+
+    func speak(queue: [String], postUtteranceDelay: TimeInterval) {
         guard !queue.isEmpty, !synthesizer.isSpeaking else { return }
 
         do {
@@ -31,7 +35,7 @@ final class SpeechManager: NSObject, AVSpeechSynthesizerDelegate, ObservableObje
             let utterance = AVSpeechUtterance(string: text)
             utterance.voice = AVSpeechSynthesisVoice(language: Locale.current.identifier) ?? AVSpeechSynthesisVoice(language: "en-US")
             utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95
-            utterance.postUtteranceDelay = 1.0
+            utterance.postUtteranceDelay = postUtteranceDelay
             return utterance
         }
 
