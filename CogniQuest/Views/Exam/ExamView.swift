@@ -86,7 +86,7 @@ struct ExamView: View {
             }
         }
         .onReceive(tickTimer) { _ in
-            if viewModel.phase != .narrating { viewModel.handleTick() }
+            if viewModel.phase != .narrating && !viewModel.isTimerPaused { viewModel.handleTick() }
         }
         .navigationTitle("Exam")
         .navigationBarBackButtonHidden(true)
@@ -121,7 +121,12 @@ struct ExamView: View {
                 )
             )
         case .clockDrawing:
-            DrawingView(questionId: question.id, answers: $viewModel.answers)
+            ClockDrawingView(
+                questionId: question.id, 
+                answers: $viewModel.answers, 
+                isTimerPaused: $viewModel.isTimerPaused,
+                onSubmit: { viewModel.moveToNextQuestion() }
+            )
         case .shapeIdentification:
             ShapeIdentificationView(questionId: question.id, answers: $viewModel.answers)
         case .storyRecall:

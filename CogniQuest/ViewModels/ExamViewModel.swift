@@ -13,6 +13,7 @@ final class ExamViewModel: ObservableObject {
     @Published var navigationDirection: NavigationDirection = .forward
     @Published var phase: Phase = .answering
     @Published var timeRemaining: Double
+    @Published var isTimerPaused: Bool = false
 
     let hasHighSchoolEducation: Bool
     let timerDuration: Double

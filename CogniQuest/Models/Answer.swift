@@ -11,6 +11,7 @@ public enum Answer: Equatable {
     case fiveWordRecall([String])
     case numberSeries(NumberSeriesAnswer)
     case drawing([DrawingPath])
+    case clockDrawing(ClockDrawingAnswer)
     case shape(ShapeAnswer)
     case story(StoryAnswer)
 }
@@ -36,6 +37,18 @@ public struct StoryAnswer: Equatable {
     public let profession: String
     public let whenReturnedToWork: String
     public let state: String
+}
+
+public struct ClockDrawingAnswer: Equatable {
+    public let drawing: [DrawingPath]
+    public let hasCorrectNumbers: Bool
+    public let hasCorrectTime: Bool
+    
+    public init(drawing: [DrawingPath], hasCorrectNumbers: Bool, hasCorrectTime: Bool) {
+        self.drawing = drawing
+        self.hasCorrectNumbers = hasCorrectNumbers
+        self.hasCorrectTime = hasCorrectTime
+    }
 }
 
 // DrawingPath is used by drawing answers; keep it here for visibility

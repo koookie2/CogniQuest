@@ -38,6 +38,12 @@ struct ScoringService {
             if series.series3 == "7358" { totalScore += 1 }
         }
 
+        // Clock drawing Q9
+        if case let .clockDrawing(clock)? = answers[9] {
+            if clock.hasCorrectNumbers { totalScore += 2 }
+            if clock.hasCorrectTime { totalScore += 2 }
+        }
+
         // Shape identification Q10
         if case let .shape(shape)? = answers[10] {
             if shape.tappedShape == "Triangle" { totalScore += 1 }

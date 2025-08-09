@@ -77,6 +77,10 @@ struct ReportView: View {
             return "Name: \(st.womanName.isEmpty ? "NR" : st.womanName), Work: \(st.profession.isEmpty ? "NR" : st.profession), Returned: \(st.whenReturnedToWork.isEmpty ? "NR" : st.whenReturnedToWork), State: \(st.state.isEmpty ? "NR" : st.state)"
         case (.shapeIdentification, .shape(let shp)):
             return "Tapped: \(shp.tappedShape ?? "NR"), Largest: \(shp.largestShape ?? "NR")"
+        case (.clockDrawing, .clockDrawing(let clock)):
+            let numbersStatus = clock.hasCorrectNumbers ? "✓" : "✗"
+            let timeStatus = clock.hasCorrectTime ? "✓" : "✗"
+            return "Numbers: \(numbersStatus), Time: \(timeStatus)"
         case (.clockDrawing, _): return "Drawing was recorded."
         case (.orientation, .text(let t)): return t
         case (.orientation, .number(let n)): return String(n)
