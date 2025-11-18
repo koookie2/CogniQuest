@@ -34,6 +34,10 @@ struct ExamView: View {
                     questions: viewModel.questions,
                     answers: viewModel.answers
                 )
+            } else if viewModel.questions.isEmpty {
+                VStack {
+                    ProgressView("Loading Exam...")
+                }
             } else {
                 VStack {
                     Text("Time Remaining: \(Int(viewModel.timeRemaining))s")

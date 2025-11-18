@@ -14,29 +14,30 @@ final class ExamViewModel: ObservableObject {
     @Published var phase: Phase = .answering
     @Published var timeRemaining: Double
     @Published var isTimerPaused: Bool = false
+    @Published var questions: [Question] = []
 
     let hasHighSchoolEducation: Bool
     let timerDuration: Double
     private let scoringService = ScoringService()
+    private let repository: QuestionRepositoryProtocol
 
-    let questions: [Question] = [
-        Question(id: 1, text: "What day of the week is it?", type: .orientation, points: 1),
-        Question(id: 2, text: "What is the year?", type: .orientation, points: 1),
-        Question(id: 3, text: "What state are we in?", type: .orientation, points: 1),
-        Question(id: 4, text: "Please remember these five objects. I will ask you what they are later.", type: .registration, points: 0),
-        Question(id: 5, text: "You have $100. You buy a dozen apples for $3 and a tricycle for $20.", type: .calculation, points: 3),
-        Question(id: 6, text: "Please name as many animals as you can in one minute.", type: .animalList, points: 3),
-        Question(id: 7, text: "What were the five objects I asked you to remember?", type: .fiveWordRecall, points: 5),
-        Question(id: 8, text: "I am going to give you a series of numbers and I would like you to give them to me backwards. For example, if I say 42, you would say or type 24.", type: .numberSeriesBackwards, points: 2),
-        Question(id: 9, text: "Draw a clock with all the numbers and set the time to ten minutes to eleven o'clock.", type: .clockDrawing, points: 4),
-        Question(id: 10, text: "Please place an 'X' in the triangle. Then, identify which of the figures is largest.", type: .shapeIdentification, points: 2),
-        Question(id: 11, text: "Listen to this story and answer the questions:\n\nJill was a very successful stockbroker. She made a lot of money on the stock market. She then met Jack, a devastatingly handsome man. She married him and had three children. They lived in Chicago. She then stopped work and stayed at home to bring up her children. When they were teenagers, she went back to work. She and Jack lived happily ever after.", type: .storyRecall, points: 8)
-    ]
-
-    init(hasHighSchoolEducation: Bool, timerDuration: Double) {
+    init(hasHighSchoolEducation: Bool, timerDuration: Double, repository: QuestionRepositoryProtocol = QuestionRepository()) {
         self.hasHighSchoolEducation = hasHighSchoolEducation
         self.timerDuration = timerDuration
         self.timeRemaining = timerDuration
+        self.repository = repository
+        
+        Task { await loadQuestions() }
+    }
+    
+    @MainActor
+    private func loadQuestions() async {
+        do {
+            self.questions = try await repository.fetchQuestions()
+        } catch {
+            print("Failed to load questions: \(error)")
+            // In a real app, we would handle this error (e.g. show an alert)
+        }
     }
 
     func handleTick() {
