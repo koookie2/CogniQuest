@@ -53,7 +53,7 @@ final class ExamViewModel: ObservableObject {
             currentQuestionIndex += 1
             resetTimer()
         } else {
-            score = scoringService.score(answers: answers, hasHighSchoolEducation: hasHighSchoolEducation)
+            score = scoringService.score(answers: answers, questions: questions, hasHighSchoolEducation: hasHighSchoolEducation)
             showResults = true
             phase = .finished
         }

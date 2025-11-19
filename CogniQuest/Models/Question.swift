@@ -7,6 +7,15 @@ public struct Question: Identifiable, Equatable, Codable {
     public let text: String
     public let type: QuestionType
     public let points: Int
+    public let scoringCriteria: ScoringCriteria?
+}
+
+public struct ScoringCriteria: Codable, Equatable {
+    public let dynamicRule: String?
+    public let exactMatches: [String]?
+    public let thresholds: [Int]?
+    public let requiredComponents: [String]?
+    public let keywords: [String]?
 }
 
 public enum QuestionType: String, Equatable, Codable {

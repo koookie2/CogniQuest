@@ -26,8 +26,8 @@ final class ExamViewModelTests: XCTestCase {
     func testInitializationLoadsQuestions() async {
         // Given
         let expectedQuestions = [
-            Question(id: 1, text: "Test Q1", type: .orientation, points: 1),
-            Question(id: 2, text: "Test Q2", type: .orientation, points: 1)
+            Question(id: 1, text: "Test Q1", type: .orientation, points: 1, scoringCriteria: nil),
+            Question(id: 2, text: "Test Q2", type: .orientation, points: 1, scoringCriteria: nil)
         ]
         mockRepository.questionsToReturn = expectedQuestions
         
@@ -45,8 +45,8 @@ final class ExamViewModelTests: XCTestCase {
     func testMoveToNextQuestion() async {
         // Given
         mockRepository.questionsToReturn = [
-            Question(id: 1, text: "Q1", type: .orientation, points: 1),
-            Question(id: 2, text: "Q2", type: .orientation, points: 1)
+            Question(id: 1, text: "Q1", type: .orientation, points: 1, scoringCriteria: nil),
+            Question(id: 2, text: "Q2", type: .orientation, points: 1, scoringCriteria: nil)
         ]
         viewModel = ExamViewModel(hasHighSchoolEducation: true, timerDuration: 60, repository: mockRepository)
         try? await Task.sleep(nanoseconds: 100_000_000)
@@ -62,7 +62,7 @@ final class ExamViewModelTests: XCTestCase {
     func testFinishExam() async {
         // Given
         mockRepository.questionsToReturn = [
-            Question(id: 1, text: "Q1", type: .orientation, points: 1)
+            Question(id: 1, text: "Q1", type: .orientation, points: 1, scoringCriteria: nil)
         ]
         viewModel = ExamViewModel(hasHighSchoolEducation: true, timerDuration: 60, repository: mockRepository)
         try? await Task.sleep(nanoseconds: 100_000_000)
