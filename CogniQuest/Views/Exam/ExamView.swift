@@ -3,13 +3,15 @@ import SwiftUI
 struct ExamView: View {
     let hasHighSchoolEducation: Bool
     let timerDuration: Double
+    @Binding var isExamActive: Bool
     @StateObject private var viewModel: ExamViewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var tickTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    init(hasHighSchoolEducation: Bool, timerDuration: Double) {
+
+    init(hasHighSchoolEducation: Bool, timerDuration: Double, isExamActive: Binding<Bool>) {
         self.hasHighSchoolEducation = hasHighSchoolEducation
         self.timerDuration = timerDuration
+        self._isExamActive = isExamActive
         _viewModel = StateObject(wrappedValue: ExamViewModel(hasHighSchoolEducation: hasHighSchoolEducation, timerDuration: timerDuration))
     }
 
@@ -27,29 +29,27 @@ struct ExamView: View {
 
     var body: some View {
         VStack {
-            if viewModel.showResults {
-                ResultsView(
-                    score: viewModel.score,
-                    hasHighSchoolEducation: hasHighSchoolEducation,
-                    questions: viewModel.questions,
-                    answers: viewModel.answers
-                )
-            } else if viewModel.questions.isEmpty {
+            if viewModel.questions.isEmpty {
                 VStack {
                     ProgressView("Loading Exam...")
                 }
             } else {
                 VStack {
-                    Text("Time Remaining: \(Int(viewModel.timeRemaining))s")
+                    let timeValue = max(0, viewModel.timeRemaining)
+                    Text("Time Remaining: \(Int(timeValue))s")
                         .font(.headline)
-                        .foregroundColor(viewModel.timeRemaining <= 10 ? .red : .primary)
-                    ProgressView(value: viewModel.timeRemaining, total: timerDuration)
-                        .progressViewStyle(LinearProgressViewStyle(tint: viewModel.timeRemaining <= 10 ? .red : .blue))
+                        .foregroundColor(timeValue <= 10 ? .red : .primary)
+                    if timerDuration > 0 && !timeValue.isNaN && !timeValue.isInfinite {
+                        ProgressView(value: timeValue, total: timerDuration)
+                            .progressViewStyle(LinearProgressViewStyle(tint: timeValue <= 10 ? .red : .blue))
+                    }
                 }
                 .padding(.horizontal)
 
-                ProgressView(value: Double(viewModel.currentQuestionIndex + 1), total: Double(viewModel.questions.count))
-                    .padding()
+                if viewModel.questions.count > 0 {
+                    ProgressView(value: Double(viewModel.currentQuestionIndex + 1), total: Double(viewModel.questions.count))
+                        .padding()
+                }
 
                 VStack {
                     Text("Question \(viewModel.currentQuestionIndex + 1) of \(viewModel.questions.count)")
@@ -75,13 +75,20 @@ struct ExamView: View {
 
                 HStack {
                     if viewModel.currentQuestionIndex > 0 {
-                        Button("Back") { viewModel.moveBack() }
-                            .padding()
-                            .buttonStyle(.bordered)
+                        Button("Back") {
+                            hideKeyboard()
+                            viewModel.moveBack()
+                        }
+                        .padding()
+                        .buttonStyle(.bordered)
                     }
                     Spacer()
                     Button(viewModel.currentQuestionIndex == viewModel.questions.count - 1 ? "Finish Exam" : "Next") {
-                        viewModel.moveToNextQuestion()
+                        hideKeyboard()
+                        // Small delay to ensure keyboard dismisses cleanly
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            viewModel.moveToNextQuestion()
+                        }
                     }
                     .padding()
                     .buttonStyle(.borderedProminent)
@@ -89,16 +96,30 @@ struct ExamView: View {
                 .padding()
             }
         }
-        .onReceive(tickTimer) { _ in
-            if viewModel.phase != .narrating && !viewModel.isTimerPaused { viewModel.handleTick() }
-        }
         .navigationTitle("Exam")
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: { dismiss() }) { Image(systemName: "house.fill") }
+                Button(action: { 
+                    hideKeyboard()
+                    dismiss() 
+                }) { Image(systemName: "house.fill") }
             }
         }
+        .navigationDestination(isPresented: $viewModel.showResults) {
+            ResultsView(
+                score: viewModel.score,
+                hasHighSchoolEducation: hasHighSchoolEducation,
+                questions: viewModel.questions,
+                answers: viewModel.answers,
+                isExamActive: $isExamActive
+            )
+            .navigationBarBackButtonHidden(true)
+        }
+    }
+    
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     @ViewBuilder

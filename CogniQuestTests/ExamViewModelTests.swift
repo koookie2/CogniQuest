@@ -14,6 +14,7 @@ class MockQuestionRepository: QuestionRepositoryProtocol {
 }
 
 @MainActor
+
 final class ExamViewModelTests: XCTestCase {
     var viewModel: ExamViewModel!
     var mockRepository: MockQuestionRepository!
@@ -65,7 +66,8 @@ final class ExamViewModelTests: XCTestCase {
             Question(id: 1, text: "Q1", type: .orientation, points: 1, scoringCriteria: nil)
         ]
         viewModel = ExamViewModel(hasHighSchoolEducation: true, timerDuration: 60, repository: mockRepository)
-        try? await Task.sleep(nanoseconds: 100_000_000)
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+        XCTAssertEqual(viewModel.questions.count, 1)
         
         // When
         viewModel.moveToNextQuestion() // Should finish since it's the last question

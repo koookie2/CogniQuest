@@ -5,7 +5,7 @@ struct ResultsView: View {
     let hasHighSchoolEducation: Bool
     let questions: [Question]
     let answers: [Int: Answer]
-    @Environment(\.dismiss) private var dismiss
+    @Binding var isExamActive: Bool
     @State private var showReport = false
 
     var interpretation: String {
@@ -61,7 +61,7 @@ struct ResultsView: View {
 
             Spacer()
 
-            Button(action: { dismiss() }) {
+            Button(action: { isExamActive = false }) {
                 Text("Back to Home")
                     .font(.title3)
                     .fontWeight(.semibold)

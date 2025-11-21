@@ -58,7 +58,7 @@ struct ContentView: View {
                 Spacer()
             }
             .navigationDestination(isPresented: $isExamActive) {
-                ExamView(hasHighSchoolEducation: hasHighSchoolEducation, timerDuration: timerDuration)
+                ExamView(hasHighSchoolEducation: hasHighSchoolEducation, timerDuration: timerDuration, isExamActive: $isExamActive)
             }
         }
     }
