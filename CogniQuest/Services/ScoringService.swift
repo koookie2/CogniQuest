@@ -156,8 +156,24 @@ struct ScoringService {
         var points = 0
         if story.womanName.trimmedLowercased() == keywords[0] { points += 2 }
         if story.profession.trimmedLowercased() == keywords[1] { points += 2 }
-        if story.whenReturnedToWork.trimmedLowercased().contains(keywords[2]) { points += 2 }
-        if story.state.trimmedLowercased() == keywords[3] { points += 2 }
+        let returnAnswer = story.whenReturnedToWork.trimmedLowercased()
+        if returnAnswer.contains("teen") || returnAnswer.contains(keywords[2]) {
+            points += 2
+        }
+        
+        let stateAnswer = story.state.trimmedLowercased()
+        if stateAnswer == keywords[3] {
+            points += 2
+        } else if let expected = StateLookup.info(for: keywords[3]) {
+            if stateAnswer == expected.fullName.trimmedLowercased() || stateAnswer == expected.abbreviation.lowercased() {
+                points += 2
+            }
+        } else if let answerInfo = StateLookup.info(for: story.state) {
+            let expectedLower = keywords[3].trimmedLowercased()
+            if answerInfo.fullName.trimmedLowercased() == expectedLower || answerInfo.abbreviation.lowercased() == expectedLower {
+                points += 2
+            }
+        }
         return points
     }
 }

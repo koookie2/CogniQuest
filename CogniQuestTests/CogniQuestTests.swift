@@ -72,6 +72,27 @@ final class ScoringServiceTests: XCTestCase {
         XCTAssertEqual(shortScore, 1)
         XCTAssertEqual(longScore, 1)
     }
+
+    func testMatchesStateRuleIgnoresCase() {
+        let service = ScoringService()
+        let question = Question(
+            id: 3,
+            text: "State?",
+            type: .orientation,
+            points: 1,
+            scoringCriteria: ScoringCriteria(dynamicRule: "matchesState", exactMatches: nil, thresholds: nil, requiredComponents: nil, keywords: nil)
+        )
+
+        let answers: [Int: Answer] = [3: .text("va")]
+        let expectedState = StateInfo(fullName: "Virginia", abbreviation: "VA")
+        let score = service.score(
+            answers: answers,
+            questions: [question],
+            hasHighSchoolEducation: true,
+            expectedState: expectedState
+        )
+        XCTAssertEqual(score, 1)
+    }
     
     func testCurrentDayAcceptsShortForm() {
         let service = ScoringService()
@@ -129,5 +150,37 @@ final class ScoringServiceTests: XCTestCase {
         
         let score = service.score(answers: answers, questions: [question], hasHighSchoolEducation: true)
         XCTAssertEqual(score, 2)
+    }
+
+    func testStoryRecallAcceptsTeenSubstringAndStateAbbreviation() {
+        let service = ScoringService()
+        let question = Question(
+            id: 11,
+            text: "Story",
+            type: .storyRecall,
+            points: 8,
+            scoringCriteria: ScoringCriteria(
+                dynamicRule: nil,
+                exactMatches: nil,
+                thresholds: nil,
+                requiredComponents: nil,
+                keywords: ["jill", "stockbroker", "teenagers", "illinois"]
+            )
+        )
+
+        let answer = StoryAnswer(
+            womanName: "Jill",
+            profession: "Stockbroker",
+            whenReturnedToWork: "When the kids were in their teens",
+            state: "IL"
+        )
+
+        let score = service.score(
+            answers: [11: .story(answer)],
+            questions: [question],
+            hasHighSchoolEducation: true
+        )
+
+        XCTAssertEqual(score, 8)
     }
 }

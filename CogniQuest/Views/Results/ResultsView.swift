@@ -81,7 +81,8 @@ struct ResultsView: View {
                 interpretation: interpretation,
                 questions: questions,
                 answers: answers,
-                questionScores: questionScores
+                questionScores: questionScores,
+                hasHighSchoolEducation: hasHighSchoolEducation
             )
         }
     }
@@ -102,4 +103,3 @@ struct ResultsView: View {
         }
     }
 }
-

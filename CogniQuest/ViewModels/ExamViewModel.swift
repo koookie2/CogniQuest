@@ -99,16 +99,9 @@ final class ExamViewModel: ObservableObject {
         if navigationManager.next() {
             resetTimer()
         } else {
-            timerService.stop()
-            let scoreResult = scoringService.scoreResult(
-                answers: answers,
-                questions: questions,
-                hasHighSchoolEducation: hasHighSchoolEducation,
-                expectedState: resolvedState
-            )
-            score = scoreResult.total
-            questionScores = scoreResult.perQuestion
-            showResults = true
+            Task {
+                await finalizeExam()
+            }
         }
     }
 
@@ -135,4 +128,20 @@ final class ExamViewModel: ObservableObject {
     }
 
     var questionTransition: Any { navigationDirection == .forward }
+
+    private func finalizeExam() async {
+        timerService.stop()
+        if resolvedState == nil {
+            resolvedState = await stateResolver.resolveState()
+        }
+        let scoreResult = scoringService.scoreResult(
+            answers: answers,
+            questions: questions,
+            hasHighSchoolEducation: hasHighSchoolEducation,
+            expectedState: resolvedState
+        )
+        score = scoreResult.total
+        questionScores = scoreResult.perQuestion
+        showResults = true
+    }
 }
