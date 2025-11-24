@@ -1,5 +1,6 @@
 import SwiftUI
 import PDFKit
+import UIKit
 
 struct ReportView: View {
     let score: Int
@@ -30,41 +31,60 @@ struct ReportView: View {
     }
 
     var reportBody: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            VStack {
-                Text("CogniQuest Screening Report").font(.title2).bold()
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(spacing: 6) {
+                Text("CogniQuest Screening Report")
+                    .font(.title2.weight(.bold))
+                    .foregroundColor(.black)
                 Text("Generated on: \(Date().formatted(date: .long, time: .shortened))")
-                    .font(.subheadline).foregroundColor(.gray)
+                    .font(.subheadline)
+                    .foregroundColor(.black)
             }
             .frame(maxWidth: .infinity)
-            .padding(.bottom)
+            .padding(.bottom, 12)
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("Summary").font(.title3).bold()
-                HStack { Text("Final Score:"); Spacer(); Text("\(score) / 30").bold() }
-                HStack { Text("Interpretation:"); Spacer(); Text(interpretation).bold() }
+                Text("Summary").font(.title3.weight(.bold)).foregroundColor(.black)
+                HStack {
+                    Text("Final Score:").foregroundColor(.black)
+                    Spacer()
+                    Text("\(score) / 30").fontWeight(.bold).foregroundColor(.black)
+                }
+                HStack {
+                    Text("Interpretation:").foregroundColor(.black)
+                    Spacer()
+                    Text(interpretation).fontWeight(.bold).foregroundColor(.black)
+                }
             }
             .padding()
-            .background(Color(UIColor.systemGray6))
+            .background(Color.white)
             .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.black.opacity(0.1), lineWidth: 1)
+            )
 
-            Text("Detailed Responses").font(.title3).bold().padding(.top)
+            Text("Detailed Responses").font(.title3.weight(.bold)).foregroundColor(.black).padding(.top, 8)
 
             ForEach(questions.filter { $0.type != .registration }) { question in
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Q\(question.id): \(question.text.split(separator: "\n").first ?? "")")
                         .font(.headline)
+                        .foregroundColor(.black)
                     Text("Score: \(scoreSummary(for: question))")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.black)
                     Text(formattedAnswer(for: question))
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.black)
                 }
                 Divider()
+                    .overlay(Color.black.opacity(0.1))
             }
         }
-        .padding()
+        .padding(.horizontal, 24)
+        .padding(.vertical, 32)
+        .background(Color.white)
     }
 
     private func scoreSummary(for question: Question) -> String {
@@ -99,14 +119,38 @@ struct ReportView: View {
 
     @MainActor
     private func exportPDF() {
-        // Render SwiftUI to PDF pages with UIGraphicsPDFRenderer
-        let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792)) // US Letter size @72dpi
-        let hosting = UIHostingController(rootView: reportBody.frame(maxWidth: .infinity))
-        hosting.view.bounds = CGRect(x: 0, y: 0, width: 612, height: 792)
+        let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792) // US Letter size @72dpi
+        let printableWidth = pageRect.width - 48
+        let paddedView = reportBody
+            .frame(width: printableWidth, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 32)
+            .background(Color.white)
+        let hosting = UIHostingController(rootView: paddedView)
+        hosting.view.backgroundColor = .white
+        hosting.view.bounds = CGRect(origin: .zero, size: CGSize(width: pageRect.width, height: 10))
+        hosting.view.setNeedsLayout()
+        hosting.view.layoutIfNeeded()
 
+        let targetSize = hosting.view.systemLayoutSizeFitting(
+            CGSize(width: pageRect.width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+        hosting.view.bounds = CGRect(origin: .zero, size: CGSize(width: pageRect.width, height: targetSize.height))
+        hosting.view.layoutIfNeeded()
+
+        let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
         let data = renderer.pdfData { ctx in
-            ctx.beginPage()
-            hosting.view.drawHierarchy(in: hosting.view.bounds, afterScreenUpdates: true)
+            var offset: CGFloat = 0
+            while offset < targetSize.height {
+                ctx.beginPage()
+                ctx.cgContext.saveGState()
+                ctx.cgContext.translateBy(x: 0, y: -offset)
+                hosting.view.drawHierarchy(in: hosting.view.bounds, afterScreenUpdates: true)
+                ctx.cgContext.restoreGState()
+                offset += pageRect.height
+            }
         }
 
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("CogniQuest_Report_\(UUID().uuidString.prefix(6)).pdf")
