@@ -10,13 +10,14 @@ final class ExamViewModel: ObservableObject {
     @Published var score: Int = 0
     @Published var showResults: Bool = false
     @Published var questions: [Question] = []
+    @Published var questionScores: [Int: Int] = [:]
     
     // Forwarded properties for View compatibility
     @Published var currentQuestionIndex: Int = 0
     @Published var navigationDirection: NavigationDirection = .forward
     @Published var phase: Phase = .answering
     @Published var timeRemaining: Double = 0
-    @Published var isTimerPaused: Bool = false
+    @Published private(set) var resolvedState: StateInfo?
 
     let hasHighSchoolEducation: Bool
     let timerDuration: Double
@@ -25,20 +26,24 @@ final class ExamViewModel: ObservableObject {
     private let repository: QuestionRepositoryProtocol
     private let timerService: TimerService
     private let navigationManager: NavigationManager
+    private let stateResolver: StateResolverProtocol
     private var cancellables = Set<AnyCancellable>()
 
     init(hasHighSchoolEducation: Bool, timerDuration: Double, 
          repository: QuestionRepositoryProtocol = QuestionRepository(),
          timerService: TimerService? = nil,
-         navigationManager: NavigationManager? = nil) {
+         navigationManager: NavigationManager? = nil,
+         stateResolver: StateResolverProtocol? = nil) {
         self.hasHighSchoolEducation = hasHighSchoolEducation
         self.timerDuration = timerDuration
         self.repository = repository
         self.timerService = timerService ?? TimerService()
         self.navigationManager = navigationManager ?? NavigationManager()
+        self.stateResolver = stateResolver ?? StateResolver()
         
         setupBindings()
         Task { await loadQuestions() }
+        Task { await resolveDeviceState() }
     }
     
     private func setupBindings() {
@@ -58,10 +63,6 @@ final class ExamViewModel: ObservableObject {
         // Bind TimerService
         timerService.$timeRemaining
             .sink { [weak self] in self?.timeRemaining = $0 }
-            .store(in: &cancellables)
-        
-        timerService.$isPaused
-            .sink { [weak self] in self?.isTimerPaused = $0 }
             .store(in: &cancellables)
         
         // Handle timer expiry
@@ -86,6 +87,10 @@ final class ExamViewModel: ObservableObject {
         }
     }
 
+    private func resolveDeviceState() async {
+        resolvedState = await stateResolver.resolveState()
+    }
+
     func resetTimer() { 
         timerService.start(duration: timerDuration)
     }
@@ -95,7 +100,14 @@ final class ExamViewModel: ObservableObject {
             resetTimer()
         } else {
             timerService.stop()
-            score = scoringService.score(answers: answers, questions: questions, hasHighSchoolEducation: hasHighSchoolEducation)
+            let scoreResult = scoringService.scoreResult(
+                answers: answers,
+                questions: questions,
+                hasHighSchoolEducation: hasHighSchoolEducation,
+                expectedState: resolvedState
+            )
+            score = scoreResult.total
+            questionScores = scoreResult.perQuestion
             showResults = true
         }
     }
@@ -114,6 +126,13 @@ final class ExamViewModel: ObservableObject {
         }
     }
 
+    func pauseTimer() {
+        timerService.pause()
+    }
+
+    func resumeTimer() {
+        timerService.resume()
+    }
+
     var questionTransition: Any { navigationDirection == .forward }
 }
-

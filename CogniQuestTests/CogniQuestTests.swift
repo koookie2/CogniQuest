@@ -41,4 +41,93 @@ final class ScoringServiceTests: XCTestCase {
         let score = service.score(answers: answers, questions: questions, hasHighSchoolEducation: true)
         XCTAssertEqual(score, 2)
     }
+
+    func testMatchesStateRuleAcceptsLongAndShortForms() {
+        let service = ScoringService()
+        let question = Question(
+            id: 3,
+            text: "State?",
+            type: .orientation,
+            points: 1,
+            scoringCriteria: ScoringCriteria(dynamicRule: "matchesState", exactMatches: nil, thresholds: nil, requiredComponents: nil, keywords: nil)
+        )
+
+        let answersShort: [Int: Answer] = [3: .text("va")]
+        let answersLong: [Int: Answer] = [3: .text("Virginia")]
+        let expectedState = StateInfo(fullName: "Virginia", abbreviation: "VA")
+
+        let shortScore = service.score(
+            answers: answersShort,
+            questions: [question],
+            hasHighSchoolEducation: true,
+            expectedState: expectedState
+        )
+        let longScore = service.score(
+            answers: answersLong,
+            questions: [question],
+            hasHighSchoolEducation: true,
+            expectedState: expectedState
+        )
+
+        XCTAssertEqual(shortScore, 1)
+        XCTAssertEqual(longScore, 1)
+    }
+    
+    func testCurrentDayAcceptsShortForm() {
+        let service = ScoringService()
+        let question = Question(
+            id: 1,
+            text: "Day?",
+            type: .orientation,
+            points: 1,
+            scoringCriteria: ScoringCriteria(dynamicRule: "currentDay", exactMatches: nil, thresholds: nil, requiredComponents: nil, keywords: nil)
+        )
+        
+        let shortDay = DateFormatter.weekdayShort().capitalized
+        let answers: [Int: Answer] = [1: .text(shortDay)]
+        
+        let score = service.score(answers: answers, questions: [question], hasHighSchoolEducation: true)
+        XCTAssertEqual(score, 1)
+    }
+    
+    func testCurrentYearAcceptsTwoDigitAnswer() {
+        let service = ScoringService()
+        let question = Question(
+            id: 2,
+            text: "Year?",
+            type: .orientation,
+            points: 1,
+            scoringCriteria: ScoringCriteria(dynamicRule: "currentYear", exactMatches: nil, thresholds: nil, requiredComponents: nil, keywords: nil)
+        )
+        
+        let currentYear = Calendar.current.component(.year, from: Date())
+        let shortYear = currentYear % 100
+        let answers: [Int: Answer] = [2: .number(shortYear)]
+        
+        let score = service.score(answers: answers, questions: [question], hasHighSchoolEducation: true)
+        XCTAssertEqual(score, 1)
+    }
+    
+    func testShapeIdentificationIgnoresCase() {
+        let service = ScoringService()
+        let question = Question(
+            id: 10,
+            text: "Shapes",
+            type: .shapeIdentification,
+            points: 2,
+            scoringCriteria: ScoringCriteria(
+                dynamicRule: nil,
+                exactMatches: ["Triangle", "Square"],
+                thresholds: nil,
+                requiredComponents: nil,
+                keywords: nil
+            )
+        )
+        
+        var answers: [Int: Answer] = [:]
+        answers[10] = .shape(ShapeAnswer(tappedShape: "triangle", largestShape: "square"))
+        
+        let score = service.score(answers: answers, questions: [question], hasHighSchoolEducation: true)
+        XCTAssertEqual(score, 2)
+    }
 }

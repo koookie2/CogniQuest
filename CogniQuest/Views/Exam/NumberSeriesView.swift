@@ -53,7 +53,7 @@ struct NumberSeriesView: View {
         let speechSequence = [questionText, series1, series2, series3]
 
         speechManager.onQueueFinish = { isNarrationComplete = true }
-        speechManager.speak(queue: speechSequence)
+        speechManager.speak(queue: speechSequence, postUtteranceDelay: 2.5)
     }
 
     private func updateAnswers() {
@@ -61,5 +61,4 @@ struct NumberSeriesView: View {
         answers[questionId] = .numberSeries(numberAnswers)
     }
 }
-
 

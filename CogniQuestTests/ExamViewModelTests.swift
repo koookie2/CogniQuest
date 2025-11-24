@@ -14,14 +14,25 @@ class MockQuestionRepository: QuestionRepositoryProtocol {
 }
 
 @MainActor
+final class MockStateResolver: StateResolverProtocol {
+    var result: StateInfo?
+
+    func resolveState() async -> StateInfo? {
+        result
+    }
+}
+
+@MainActor
 
 final class ExamViewModelTests: XCTestCase {
     var viewModel: ExamViewModel!
     var mockRepository: MockQuestionRepository!
+    var mockStateResolver: MockStateResolver!
     
     override func setUp() {
         super.setUp()
         mockRepository = MockQuestionRepository()
+        mockStateResolver = MockStateResolver()
     }
     
     func testInitializationLoadsQuestions() async {
@@ -33,7 +44,12 @@ final class ExamViewModelTests: XCTestCase {
         mockRepository.questionsToReturn = expectedQuestions
         
         // When
-        viewModel = ExamViewModel(hasHighSchoolEducation: true, timerDuration: 60, repository: mockRepository)
+        viewModel = ExamViewModel(
+            hasHighSchoolEducation: true,
+            timerDuration: 60,
+            repository: mockRepository,
+            stateResolver: mockStateResolver
+        )
         
         // Then
         // Allow async task to complete
@@ -49,7 +65,12 @@ final class ExamViewModelTests: XCTestCase {
             Question(id: 1, text: "Q1", type: .orientation, points: 1, scoringCriteria: nil),
             Question(id: 2, text: "Q2", type: .orientation, points: 1, scoringCriteria: nil)
         ]
-        viewModel = ExamViewModel(hasHighSchoolEducation: true, timerDuration: 60, repository: mockRepository)
+        viewModel = ExamViewModel(
+            hasHighSchoolEducation: true,
+            timerDuration: 60,
+            repository: mockRepository,
+            stateResolver: mockStateResolver
+        )
         try? await Task.sleep(nanoseconds: 100_000_000)
         
         // When
@@ -65,7 +86,12 @@ final class ExamViewModelTests: XCTestCase {
         mockRepository.questionsToReturn = [
             Question(id: 1, text: "Q1", type: .orientation, points: 1, scoringCriteria: nil)
         ]
-        viewModel = ExamViewModel(hasHighSchoolEducation: true, timerDuration: 60, repository: mockRepository)
+        viewModel = ExamViewModel(
+            hasHighSchoolEducation: true,
+            timerDuration: 60,
+            repository: mockRepository,
+            stateResolver: mockStateResolver
+        )
         try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
         XCTAssertEqual(viewModel.questions.count, 1)
         

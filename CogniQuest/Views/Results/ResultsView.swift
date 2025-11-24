@@ -5,6 +5,7 @@ struct ResultsView: View {
     let hasHighSchoolEducation: Bool
     let questions: [Question]
     let answers: [Int: Answer]
+    let questionScores: [Int: Int]
     @Binding var isExamActive: Bool
     @State private var showReport = false
 
@@ -79,7 +80,8 @@ struct ResultsView: View {
                 score: score,
                 interpretation: interpretation,
                 questions: questions,
-                answers: answers
+                answers: answers,
+                questionScores: questionScores
             )
         }
     }
@@ -100,5 +102,4 @@ struct ResultsView: View {
         }
     }
 }
-
 

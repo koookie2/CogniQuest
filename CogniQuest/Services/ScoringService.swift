@@ -1,49 +1,87 @@
 import Foundation
 
+struct ScoreResult {
+    let total: Int
+    let perQuestion: [Int: Int]
+}
+
 struct ScoringService {
-    func score(answers: [Int: Answer], questions: [Question], hasHighSchoolEducation: Bool) -> Int {
-        var totalScore = 0
-
-        for question in questions {
-            guard let answer = answers[question.id] else { continue }
-            
-            switch question.type {
-            case .orientation:
-                totalScore += scoreOrientation(question: question, answer: answer)
-            case .registration:
-                break // 0 points
-            case .calculation:
-                totalScore += scoreCalculation(question: question, answer: answer)
-            case .animalList:
-                totalScore += scoreAnimalList(question: question, answer: answer)
-            case .fiveWordRecall:
-                totalScore += scoreFiveWordRecall(question: question, answer: answer)
-            case .numberSeriesBackwards:
-                totalScore += scoreNumberSeries(question: question, answer: answer)
-            case .clockDrawing:
-                totalScore += scoreClockDrawing(question: question, answer: answer)
-            case .shapeIdentification:
-                totalScore += scoreShapeIdentification(question: question, answer: answer)
-            case .storyRecall:
-                totalScore += scoreStoryRecall(question: question, answer: answer)
-            }
-        }
-
-        return totalScore
+    func score(
+        answers: [Int: Answer],
+        questions: [Question],
+        hasHighSchoolEducation: Bool,
+        expectedState: StateInfo? = nil
+    ) -> Int {
+        scoreResult(
+            answers: answers,
+            questions: questions,
+            hasHighSchoolEducation: hasHighSchoolEducation,
+            expectedState: expectedState
+        ).total
     }
     
-    private func scoreOrientation(question: Question, answer: Answer) -> Int {
+    func scoreResult(
+        answers: [Int: Answer],
+        questions: [Question],
+        hasHighSchoolEducation: Bool,
+        expectedState: StateInfo? = nil
+    ) -> ScoreResult {
+        var totalScore = 0
+        var breakdown: [Int: Int] = [:]
+
+        for question in questions {
+            var earnedPoints = 0
+            if let answer = answers[question.id] {
+                switch question.type {
+                case .orientation:
+                    earnedPoints = scoreOrientation(question: question, answer: answer, expectedState: expectedState)
+                case .registration:
+                    earnedPoints = 0
+                case .calculation:
+                    earnedPoints = scoreCalculation(question: question, answer: answer)
+                case .animalList:
+                    earnedPoints = scoreAnimalList(question: question, answer: answer)
+                case .fiveWordRecall:
+                    earnedPoints = scoreFiveWordRecall(question: question, answer: answer)
+                case .numberSeriesBackwards:
+                    earnedPoints = scoreNumberSeries(question: question, answer: answer)
+                case .clockDrawing:
+                    earnedPoints = scoreClockDrawing(question: question, answer: answer)
+                case .shapeIdentification:
+                    earnedPoints = scoreShapeIdentification(question: question, answer: answer)
+                case .storyRecall:
+                    earnedPoints = scoreStoryRecall(question: question, answer: answer)
+                }
+            }
+            
+            breakdown[question.id] = earnedPoints
+            totalScore += earnedPoints
+        }
+
+        return ScoreResult(total: totalScore, perQuestion: breakdown)
+    }
+    
+    private func scoreOrientation(question: Question, answer: Answer, expectedState: StateInfo?) -> Int {
         guard let criteria = question.scoringCriteria else { return 0 }
         
         if let rule = criteria.dynamicRule {
             switch rule {
             case "currentDay":
-                if case let .text(val) = answer, val.trimmedLowercased() == DateFormatter.weekday() { return 1 }
+                guard let value = normalizedText(from: answer) else { return 0 }
+                if value == DateFormatter.weekday() { return 1 }
+                if value == DateFormatter.weekdayShort() { return 1 }
             case "currentYear":
                 let currentYear = Calendar.current.component(.year, from: Date())
-                if case let .number(val) = answer, val == currentYear { return 1 }
+                guard let yearValue = numericValue(from: answer) else { return 0 }
+                if yearValue == currentYear { return 1 }
+                if yearValue == currentYear % 100 { return 1 }
             case "nonEmpty":
                 if case let .text(val) = answer, !val.trimmedLowercased().isEmpty { return 1 }
+            case "matchesState":
+                guard let expectedState,
+                      let normalized = normalizedText(from: answer) else { return 0 }
+                if normalized == expectedState.fullName.trimmedLowercased() { return 1 }
+                if normalized == expectedState.abbreviation.lowercased() { return 1 }
             default: return 0
             }
         }
@@ -102,9 +140,12 @@ struct ScoringService {
         guard case let .shape(shape) = answer,
               let matches = question.scoringCriteria?.exactMatches, matches.count >= 2 else { return 0 }
         
+        let firstMatch = matches[0].trimmedLowercased()
+        let secondMatch = matches[1].trimmedLowercased()
+        
         var points = 0
-        if shape.tappedShape == matches[0] { points += 1 }
-        if shape.largestShape == matches[1] { points += 1 }
+        if shape.tappedShape?.trimmedLowercased() == firstMatch { points += 1 }
+        if shape.largestShape?.trimmedLowercased() == secondMatch { points += 1 }
         return points
     }
     
@@ -127,10 +168,35 @@ public extension DateFormatter {
         df.dateFormat = "EEEE"
         return df.string(from: Date()).lowercased()
     }
+    
+    static func weekdayShort() -> String {
+        let df = DateFormatter()
+        df.dateFormat = "EEE"
+        return df.string(from: Date()).lowercased()
+    }
 }
 
 extension String {
     func trimmedLowercased() -> String { self.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
 }
 
-
+private extension ScoringService {
+    func normalizedText(from answer: Answer) -> String? {
+        switch answer {
+        case .text(let value): return value.trimmedLowercased()
+        case .number(let num): return String(num).trimmedLowercased()
+        default: return nil
+        }
+    }
+    
+    func numericValue(from answer: Answer) -> Int? {
+        switch answer {
+        case .number(let value):
+            return value
+        case .text(let string):
+            return Int(string.trimmingCharacters(in: .whitespacesAndNewlines))
+        default:
+            return nil
+        }
+    }
+}

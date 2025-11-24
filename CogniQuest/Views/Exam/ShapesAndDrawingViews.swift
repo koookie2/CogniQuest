@@ -131,7 +131,8 @@ struct Triangle: Shape {
 struct ClockDrawingView: View {
     let questionId: Int
     @Binding var answers: [Int: Answer]
-    @Binding var isTimerPaused: Bool
+    var onPauseTimer: (() -> Void)? = nil
+    var onResumeTimer: (() -> Void)? = nil
     var onSubmit: (() -> Void)? = nil
     @State private var paths: [DrawingPath] = []
     @State private var currentPath = DrawingPath(color: .primary, lineWidth: 3.0)
@@ -199,7 +200,6 @@ struct ClockDrawingView: View {
                         
                         Button(action: { 
                             showSelfAssessment = true
-                            isTimerPaused = true
                         }) {
                             Label("Done Drawing", systemImage: "checkmark")
                         }
@@ -303,7 +303,7 @@ struct ClockDrawingView: View {
                             hasCorrectTime: hasCorrectTime ?? false
                         )
                         answers[questionId] = .clockDrawing(clockAnswer)
-                        isTimerPaused = false
+                        onResumeTimer?()
                         
                         // Advance to next question like the Next button
                         onSubmit?()
@@ -317,12 +317,16 @@ struct ClockDrawingView: View {
             }
         }
         .onAppear { 
+            onPauseTimer?()
             if case let .clockDrawing(saved)? = answers[questionId] {
                 paths = saved.drawing
                 hasCorrectNumbers = saved.hasCorrectNumbers
                 hasCorrectTime = saved.hasCorrectTime
                 showSelfAssessment = true
             }
+        }
+        .onDisappear {
+            onResumeTimer?()
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Clock drawing with self-assessment")
@@ -395,5 +399,4 @@ struct ReferenceClockView: View {
             .position(x: 75, y: 75)
     }
 }
-
 

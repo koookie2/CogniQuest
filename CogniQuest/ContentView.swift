@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @State private var isExamActive = false
@@ -9,6 +10,8 @@ struct ContentView: View {
         NavigationStack {
             VStack(spacing: 20) {
                 Spacer()
+                appIconView
+
                 Text("CogniQuest")
                     .font(.largeTitle)
                     .fontWeight(.bold)
@@ -64,8 +67,40 @@ struct ContentView: View {
     }
 }
 
+extension ContentView {
+    private var appIcon: UIImage? {
+        guard
+            let iconsDictionary = Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any],
+            let primaryIcon = iconsDictionary["CFBundlePrimaryIcon"] as? [String: Any],
+            let iconFiles = primaryIcon["CFBundleIconFiles"] as? [String],
+            let lastIcon = iconFiles.last,
+            let icon = UIImage(named: lastIcon)
+        else {
+            return nil
+        }
+        return icon
+    }
+
+    @ViewBuilder
+    private var appIconView: some View {
+        if let image = appIcon {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 110, height: 110)
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .shadow(radius: 6)
+        } else {
+            Image(systemName: "brain.head.profile")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 80, height: 80)
+                .foregroundColor(.blue)
+        }
+    }
+}
+
 #Preview {
     ContentView()
 }
-
 

@@ -6,6 +6,7 @@ struct ReportView: View {
     let interpretation: String
     let questions: [Question]
     let answers: [Int: Answer]
+    let questionScores: [Int: Int]
 
     struct ShareURLItem: Identifiable { let id = UUID(); let url: URL }
     @State private var shareItem: ShareURLItem?
@@ -53,6 +54,9 @@ struct ReportView: View {
                 VStack(alignment: .leading) {
                     Text("Q\(question.id): \(question.text.split(separator: "\n").first ?? "")")
                         .font(.headline)
+                    Text("Score: \(scoreSummary(for: question))")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                     Text(formattedAnswer(for: question))
                         .font(.body)
                         .foregroundColor(.secondary)
@@ -61,6 +65,11 @@ struct ReportView: View {
             }
         }
         .padding()
+    }
+
+    private func scoreSummary(for question: Question) -> String {
+        let earned = questionScores[question.id] ?? 0
+        return "\(earned)/\(question.points)"
     }
 
     private func formattedAnswer(for question: Question) -> String {
@@ -111,5 +120,3 @@ struct ReportView: View {
 }
 
 // ShareSheet is defined in Views/Results/ShareSheet.swift
-
-

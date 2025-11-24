@@ -112,6 +112,7 @@ struct ExamView: View {
                 hasHighSchoolEducation: hasHighSchoolEducation,
                 questions: viewModel.questions,
                 answers: viewModel.answers,
+                questionScores: viewModel.questionScores,
                 isExamActive: $isExamActive
             )
             .navigationBarBackButtonHidden(true)
@@ -154,9 +155,10 @@ struct ExamView: View {
             )
         case .clockDrawing:
             ClockDrawingView(
-                questionId: question.id, 
-                answers: $viewModel.answers, 
-                isTimerPaused: $viewModel.isTimerPaused,
+                questionId: question.id,
+                answers: $viewModel.answers,
+                onPauseTimer: { viewModel.pauseTimer() },
+                onResumeTimer: { viewModel.resumeTimer() },
                 onSubmit: { viewModel.moveToNextQuestion() }
             )
         case .shapeIdentification:
@@ -166,5 +168,3 @@ struct ExamView: View {
         }
     }
 }
-
-
