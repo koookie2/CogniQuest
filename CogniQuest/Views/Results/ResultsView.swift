@@ -6,6 +6,7 @@ struct ResultsView: View {
     let questions: [Question]
     let answers: [Int: Answer]
     let questionScores: [Int: Int]
+    let unscoredQuestions: Set<Int>
     @Binding var isExamActive: Bool
     @State private var showReport = false
 
@@ -49,6 +50,14 @@ struct ResultsView: View {
             }
             .padding()
 
+            if !unscoredQuestions.isEmpty {
+                Text("Some responses (e.g., the state orientation) could not be scored because location access was unavailable.")
+                    .font(.footnote)
+                    .foregroundColor(.orange)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+
             Button(action: { showReport = true }) {
                 Label("View Report", systemImage: "doc.text.fill")
             }
@@ -82,7 +91,8 @@ struct ResultsView: View {
                 questions: questions,
                 answers: answers,
                 questionScores: questionScores,
-                hasHighSchoolEducation: hasHighSchoolEducation
+                hasHighSchoolEducation: hasHighSchoolEducation,
+                unscoredQuestions: unscoredQuestions
             )
         }
     }

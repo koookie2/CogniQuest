@@ -3,6 +3,7 @@ import Foundation
 struct ScoreResult {
     let total: Int
     let perQuestion: [Int: Int]
+    let unscoredQuestions: Set<Int>
 }
 
 struct ScoringService {
@@ -28,13 +29,19 @@ struct ScoringService {
     ) -> ScoreResult {
         var totalScore = 0
         var breakdown: [Int: Int] = [:]
+        var unscoredQuestions: Set<Int> = []
 
         for question in questions {
             var earnedPoints = 0
+            var isUnscored = false
             if let answer = answers[question.id] {
                 switch question.type {
                 case .orientation:
-                    earnedPoints = scoreOrientation(question: question, answer: answer, expectedState: expectedState)
+                    if question.scoringCriteria?.dynamicRule == "matchesState" && expectedState == nil {
+                        isUnscored = true
+                    } else {
+                        earnedPoints = scoreOrientation(question: question, answer: answer, expectedState: expectedState)
+                    }
                 case .registration:
                     earnedPoints = 0
                 case .calculation:
@@ -54,11 +61,14 @@ struct ScoringService {
                 }
             }
             
+            if isUnscored {
+                unscoredQuestions.insert(question.id)
+            }
             breakdown[question.id] = earnedPoints
             totalScore += earnedPoints
         }
 
-        return ScoreResult(total: totalScore, perQuestion: breakdown)
+        return ScoreResult(total: totalScore, perQuestion: breakdown, unscoredQuestions: unscoredQuestions)
     }
     
     private func scoreOrientation(question: Question, answer: Answer, expectedState: StateInfo?) -> Int {
@@ -154,25 +164,16 @@ struct ScoringService {
               let keywords = question.scoringCriteria?.keywords, keywords.count >= 4 else { return 0 }
         
         var points = 0
-        if story.womanName.trimmedLowercased() == keywords[0] { points += 2 }
-        if story.profession.trimmedLowercased() == keywords[1] { points += 2 }
-        let returnAnswer = story.whenReturnedToWork.trimmedLowercased()
-        if returnAnswer.contains("teen") || returnAnswer.contains(keywords[2]) {
+        if containsKeyword(in: story.womanName, keyword: keywords[0]) { points += 2 }
+        if containsKeyword(in: story.profession, keyword: keywords[1]) { points += 2 }
+
+        let whenAnswer = story.whenReturnedToWork
+        if containsKeyword(in: whenAnswer, keyword: keywords[2]) || containsKeyword(in: whenAnswer, keyword: "teen") {
             points += 2
         }
         
-        let stateAnswer = story.state.trimmedLowercased()
-        if stateAnswer == keywords[3] {
+        if matchesStateAnswer(story.state, keyword: keywords[3]) {
             points += 2
-        } else if let expected = StateLookup.info(for: keywords[3]) {
-            if stateAnswer == expected.fullName.trimmedLowercased() || stateAnswer == expected.abbreviation.lowercased() {
-                points += 2
-            }
-        } else if let answerInfo = StateLookup.info(for: story.state) {
-            let expectedLower = keywords[3].trimmedLowercased()
-            if answerInfo.fullName.trimmedLowercased() == expectedLower || answerInfo.abbreviation.lowercased() == expectedLower {
-                points += 2
-            }
         }
         return points
     }
@@ -214,5 +215,63 @@ private extension ScoringService {
         default:
             return nil
         }
+    }
+
+    func containsKeyword(in answer: String, keyword: String) -> Bool {
+        let normalizedAnswer = answer.trimmedLowercased()
+        let normalizedKeyword = keyword.trimmedLowercased()
+        guard !normalizedAnswer.isEmpty, !normalizedKeyword.isEmpty else { return false }
+        if normalizedAnswer == normalizedKeyword { return true }
+
+        let tokens = tokenize(normalizedAnswer)
+        if tokens.contains(normalizedKeyword) { return true }
+
+        let condensedAnswer = tokens.joined()
+        let condensedKeyword = tokenize(normalizedKeyword).joined()
+        return condensedAnswer.contains(condensedKeyword)
+    }
+
+    func matchesStateAnswer(_ answer: String, keyword: String) -> Bool {
+        let normalizedAnswer = answer.trimmedLowercased()
+        let normalizedKeyword = keyword.trimmedLowercased()
+        guard !normalizedAnswer.isEmpty, !normalizedKeyword.isEmpty else { return false }
+        if normalizedAnswer == normalizedKeyword { return true }
+
+        if normalizedAnswer.contains(normalizedKeyword) { return true }
+        if tokenize(normalizedAnswer).contains(normalizedKeyword) { return true }
+
+        if let targetState = StateLookup.info(for: keyword) {
+            if normalizedAnswer.contains(targetState.fullName.trimmedLowercased()) || normalizedAnswer.contains(targetState.abbreviation.lowercased()) {
+                return true
+            }
+            if let answerInfo = extractStateInfo(from: answer) {
+                if answerInfo.abbreviation.lowercased() == targetState.abbreviation.lowercased() { return true }
+                if answerInfo.fullName.trimmedLowercased() == targetState.fullName.trimmedLowercased() { return true }
+            }
+        } else if let answerInfo = extractStateInfo(from: answer) {
+            if answerInfo.fullName.trimmedLowercased() == normalizedKeyword { return true }
+            if answerInfo.abbreviation.lowercased() == normalizedKeyword { return true }
+        }
+        return false
+    }
+
+    func extractStateInfo(from text: String) -> StateInfo? {
+        if let direct = StateLookup.info(for: text) {
+            return direct
+        }
+        let normalized = text.trimmedLowercased()
+        guard !normalized.isEmpty else { return nil }
+        for state in StateLookup.allStates {
+            let fullName = state.fullName.trimmedLowercased()
+            let abbreviation = state.abbreviation.lowercased()
+            if normalized.contains(fullName) || normalized.contains(abbreviation) {
+                return state
+            }
+        }
+        return nil
+    }
+
+    func tokenize(_ text: String) -> [String] {
+        text.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
     }
 }

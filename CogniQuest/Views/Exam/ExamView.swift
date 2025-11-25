@@ -113,6 +113,7 @@ struct ExamView: View {
                 questions: viewModel.questions,
                 answers: viewModel.answers,
                 questionScores: viewModel.questionScores,
+                unscoredQuestions: viewModel.unscoredQuestions,
                 isExamActive: $isExamActive
             )
             .navigationBarBackButtonHidden(true)

@@ -9,6 +9,7 @@ struct ReportView: View {
     let answers: [Int: Answer]
     let questionScores: [Int: Int]
     let hasHighSchoolEducation: Bool
+    let unscoredQuestions: Set<Int>
 
     struct ShareURLItem: Identifiable { let id = UUID(); let url: URL }
     @State private var shareItem: ShareURLItem?
@@ -163,6 +164,9 @@ struct ReportView: View {
     }
 
     private func scoreSummary(for question: Question) -> String {
+        if unscoredQuestions.contains(question.id) {
+            return "Not Scored"
+        }
         let earned = questionScores[question.id] ?? 0
         return "\(earned)/\(question.points)"
     }

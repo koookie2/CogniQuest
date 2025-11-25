@@ -183,4 +183,57 @@ final class ScoringServiceTests: XCTestCase {
 
         XCTAssertEqual(score, 8)
     }
+
+    func testStoryRecallAcceptsSentencesForKeywords() {
+        let service = ScoringService()
+        let question = Question(
+            id: 11,
+            text: "Story",
+            type: .storyRecall,
+            points: 8,
+            scoringCriteria: ScoringCriteria(
+                dynamicRule: nil,
+                exactMatches: nil,
+                thresholds: nil,
+                requiredComponents: nil,
+                keywords: ["jill", "stockbroker", "teenagers", "illinois"]
+            )
+        )
+
+        let answer = StoryAnswer(
+            womanName: "Her name was Jill.",
+            profession: "She used to be a stock broker before kids.",
+            whenReturnedToWork: "She went back to work when the kids were teenagers.",
+            state: "They lived in Illinois most of their lives."
+        )
+
+        let score = service.score(
+            answers: [11: .story(answer)],
+            questions: [question],
+            hasHighSchoolEducation: true
+        )
+
+        XCTAssertEqual(score, 8)
+    }
+
+    func testStateQuestionMarkedUnscoredWhenLocationUnavailable() {
+        let service = ScoringService()
+        let question = Question(
+            id: 3,
+            text: "State",
+            type: .orientation,
+            points: 1,
+            scoringCriteria: ScoringCriteria(dynamicRule: "matchesState", exactMatches: nil, thresholds: nil, requiredComponents: nil, keywords: nil)
+        )
+
+        let result = service.scoreResult(
+            answers: [3: .text("Virginia")],
+            questions: [question],
+            hasHighSchoolEducation: true,
+            expectedState: nil
+        )
+
+        XCTAssertEqual(result.perQuestion[3], 0)
+        XCTAssertTrue(result.unscoredQuestions.contains(3))
+    }
 }

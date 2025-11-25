@@ -11,6 +11,7 @@ final class ExamViewModel: ObservableObject {
     @Published var showResults: Bool = false
     @Published var questions: [Question] = []
     @Published var questionScores: [Int: Int] = [:]
+    @Published var unscoredQuestions: Set<Int> = []
     
     // Forwarded properties for View compatibility
     @Published var currentQuestionIndex: Int = 0
@@ -142,6 +143,7 @@ final class ExamViewModel: ObservableObject {
         )
         score = scoreResult.total
         questionScores = scoreResult.perQuestion
+        unscoredQuestions = scoreResult.unscoredQuestions
         showResults = true
     }
 }

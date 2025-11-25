@@ -76,4 +76,8 @@ struct StateLookup {
         }
         return mapping
     }()
+
+    static var allStates: [StateInfo] {
+        abbreviationToName.map { StateInfo(fullName: $0.value, abbreviation: $0.key) }
+    }
 }
